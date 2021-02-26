@@ -16,11 +16,10 @@
         update_cache: yes
       when: "'httpd' not in ansible_facts.packages"
 
-    - name: "Start the Apache process"
+    - name: "Start the Apache process, if not started"
       service:
         name: httpd
         state: started
-      when: "'httpd' not in ansible_facts.packages"
 
     - name: "Install JDK when it is not already installed"
       yum:
@@ -29,34 +28,19 @@
         update_cache: yes
       when: "'java-11-openjdk-devel' not in ansible_facts.packages"
 
-      ### this task also needs to be executed only the first time when launching this playbook
-    - name: "Uninstall old versions of Docker"
-      yum:
-        name:
-          - docker
-          - docker-client
-          - docker-client-latest
-          - docker-common
-          - docker-latest
-          - docker-latest-logrotate
-          - docker-logrotate
-          - docker-engine
-        state: absent
-      when: "'docker' not in ansible_facts.packages"
-
-    - name: "Install yum-utils package for setting up the docker repository"
+    - name: "Install yum-utils package for setting up the docker repository, when docker is not already installed"
       yum:
         name: yum-utils
         state: present
         update_cache: yes
-      when: "'docker' not in ansible_facts.packages"
+      when: "'docker-ce' not in ansible_facts.packages"
 
-    - name: "Set up the docker repository"
+    - name: "Set up the docker repository, when docker is not already installed"
       shell:
         cmd: "yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo"
-      when: "'docker' not in ansible_facts.packages"
+      when: "'docker-ce' not in ansible_facts.packages"
 
-    - name: "Install Docker Engine"
+    - name: "Install Docker Engine, when it is not already installed"
       yum:
         name:
           - docker-ce
@@ -64,13 +48,12 @@
           - containerd.io
         state: present
         update_cache: yes
-      when: "'docker' not in ansible_facts.packages"
+      when: "'docker-ce' not in ansible_facts.packages"
 
-    - name: "Start Docker"
+    - name: "Start Docker, if not started"
       service: 
         name: docker
         state: started
-      when: "'docker' not in ansible_facts.packages"
 
     - name: "Install Postgresql when it is not already installed"
       yum:
@@ -79,16 +62,19 @@
         update_cache: yes
       when: "'postgresql' not in ansible_facts.packages"
 
-      ### idk if this post installation is necessary or not yet. If so, i need to figure out how to execute this task only the first time after postgresql installation 
-    #- name: "Postgresql - Post Installation"
-      #shell:
-        #cmd: "postgresql-setup initdb"
-      #when: "'postgresql' not in ansible_facts.packages"
+    - name: "Check if postgresql is already initialized"
+      stat:
+        path: /var/lib/pgsql/data
+      register: st
 
-    - name: "Start and Enable Postgresql"
+    - name: "Postgresql - Post Installation"
+      shell:
+        cmd: "postgresql-setup initdb"
+      when: st.stat.exists==False
+
+    - name: "Start, if not stared and Enable Postgresql"
       service:
         name: postgresql  
         state: started
         enabled: yes
-      when: "'postgresql' in ansible_facts.packages"
 
